@@ -1,12 +1,13 @@
 open System
 
-type StringToIntBuilder() = 
-    member this.Bind(v,f) = 
-        let (parsed,value) = Int32.TryParse(v)
-        match parsed,value with
-        | false,_    -> "Failed"
-        | true,value -> f(value)
-    member this.Return(x) = sprintf "%i" x
+
+type AggregateBuilder(separator) = 
+    member x.Yield(v) = v.ToString()
+    member x.Delay(f) = f()
+    member x.Delay(f : unit -> string seq) = f()
+    member x.For(g,f) = g |> Seq.map f |> Seq.reduce (fun l r -> x.Combine(l, r))
+    member x.Combine(l, r) = String.Concat(l,separator, r)
+
 
 type OptionBuilder() = 
     member this.Bind(value,f) = 
@@ -44,3 +45,31 @@ type PublishBuilder() =
         for MsmqMessage(q,value) in items do
             sendMessage(q,value)     
             
+let sendAllMessages() = 
+    let p = PublishBuilder()
+    p {                         
+         do! MsmqMessage("www.google.fr", "Message 1")
+         do! MsmqMessage("www.google.fr", "Message 2")
+         do! MsmqMessage("www.google.fr", "Message 3")
+    }
+            
+
+let values =
+    let b = AggregateBuilder("; ")
+    b {
+        yield "Début";        
+        for x = 1 to 9 do yield x
+        yield "Fin";
+    }            
+
+type RetryBuilder(times) = 
+    let rec retry (f, count : int) =         
+        try 
+            if count < times then Some(f()) else None                
+        with 
+        | ex -> 
+            printfn "%A" ex.Message
+            retry(f, count - 1)
+
+    member this.Bind(value,_) = retry(value(),times)                  
+    member this.Return(_) = None       
