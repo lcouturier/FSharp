@@ -20,6 +20,10 @@ module IO =
                 yield! getFiles(dir)
         }    
 
+    type System.IO.File with
+        static member CopyAsync source target = 
+            let dele = new Action<string * string>(File.Copy)
+            Async.FromBeginEnd((source,target),dele.BeginInvoke,dele.EndInvoke)
 
     type System.IO.Directory with
         static member GetFilesLazy path = getFiles(path)
