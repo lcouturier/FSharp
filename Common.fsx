@@ -49,3 +49,15 @@ module Tools =
                 d.Add(args, result)
                 result
             )
+
+    let rec randomGenerator (value : int) =    
+        let r = Random()
+        seq {
+            yield value
+            yield! randomGenerator(value + r.Next(100))
+        }
+
+
+    let generateRandomList = 
+        let r = Random()
+        Seq.unfold(fun x -> Some(x,(x + r.Next(100)))) (1)
